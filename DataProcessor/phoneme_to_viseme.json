@@ -1,0 +1,13 @@
+{
+    "F": "v_A", "V": "v_A",
+    "OW": "v_B", "R": "v_B", "W": "v_B", "UW": "v_B",
+    "B": "v_C", "P": "v_C", "M": "v_C",
+    "AW": "v_D",
+    "DH": "v_E", "TH": "v_E",
+    "CH": "v_F", "JH": "v_F",
+    "S": "v_H", "Z": "v_H",
+    "AA": "v_I", "AE": "v_I", "AH": "v_I", "AY": "v_I", "EH": "v_I", "EY": "v_I", "IH": "v_I", "IY": "v_I", "Y": "v_I", "AO": "v_I",
+    "D": "v_J", "L": "v_J", "N": "v_J", "T": "v_J",
+    "K": "v_K", "G": "v_K",
+    "sil": "v_S"
+}
