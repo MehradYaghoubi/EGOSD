@@ -269,7 +269,7 @@ def train(config, args, mapping):
         "lr": config.training.LEARNING_RATE,
         "betas": [0.9, 0.999],
         "eps": 1e-8,
-        "weight_decay": 1e-2,
+        "weight_decay": optimizer.param_groups[0]["weight_decay"],
         "scheduler": "ReduceLROnPlateau(student_val_per), factor=0.5, patience=2, min_lr=1e-6",
         "gradient_clip": config.training.GRAD_NORM_CLIP,
         "gradient_accumulation": 1,

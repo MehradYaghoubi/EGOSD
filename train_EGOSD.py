@@ -18,7 +18,11 @@ import torch.nn.functional as F
 from Configs.config import MainConfig
 from DataProcessor.ULBiTP_data_loader import  ULBiTPDataset, ULBiTP_collate_fn
 # Import updated model and loss class
-from Model.egosd import ULBiTP_R_v8_EGOSD_FullFeedback, EGOSD_Loss, count_parameters 
+from Model.egosd import (
+    ULBiTP_R_v8_VLBP_FullFeedback as ULBiTP_R_v8_EGOSD_FullFeedback,
+    UncertaintyAwareLoss as EGOSD_Loss,
+    count_parameters,
+)
 from DataProcessor.kornia_augs import KorniaAugmentation
 from Utils.custom_loss import LabelSmoothedCTCLoss
 from Utils.metrics import calculate_per

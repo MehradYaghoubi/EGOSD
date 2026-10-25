@@ -9,7 +9,7 @@ EGOSD augments a lightweight visual speech recognition backbone with an auxiliar
 **Paper:** [SSRN preprint](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6831426)<br>
 **Preprint DOI:** [10.2139/ssrn.6831426](https://doi.org/10.2139/ssrn.6831426)<br>
 **Code:** [MehradYaghoubi/EGOSD](https://github.com/MehradYaghoubi/EGOSD)<br>
-**Original anonymous repository:** [EGOSD-D2CC](https://anonymous.4open.science/r/EGOSD-D2CC/)<br>
+**License:** [BSD 3-Clause](LICENSE)<br>
 **Lip extraction package:** [PyLipExtractor](https://github.com/MehradYaghoubi/pylipextractor) · [PyPI](https://pypi.org/project/pylipextractor/)
 
 The DOI above identifies the SSRN preprint; it is not a DOI for a published journal version. The results below distinguish the original single-run findings from the updated multiple-run evaluation. The preprint may retain the earlier figures until its corresponding revision is uploaded.
@@ -53,7 +53,7 @@ The `detach_hidden_every` setting truncates gradient propagation through the rec
 
 All PER values are percentages; lower is better. Values with `±` are **mean ± sample standard deviation**, not confidence intervals. A single-run value has no estimated run-to-run standard deviation.
 
-The numbers in this section are reported experimental results from the revised manuscript and the authors' experiment records. They were not newly measured while preparing this README. The original source snapshot is preserved, with the revised gate-control and adapted CTC-SKD trainers added separately. Not every historical training configuration or comparison implementation is included.
+The numbers in this section are reported experimental results from the revised manuscript and the authors' experiment records. They were not newly measured while preparing this README. This repository includes the Baseline, EGOSD, gate-control and adapted CTC-SKD training entry points. All use the shared configuration in `Configs/config.py`; the shipped defaults and differences between trainer implementations are documented below. Not every historical training configuration or comparison implementation is included.
 
 ### Main results over three runs
 
@@ -166,13 +166,12 @@ These are the reported counts for the corresponding profiling setup, not new tim
 
 ## Repository structure
 
-The original repository layout is retained:
+The current repository layout is:
 
 ```text
 EGOSD/
 ├── Configs/
-│   ├── config.py
-│   └── comparison_config.py     # research configuration for added comparisons
+│   └── config.py                # shared configuration for all training scripts
 ├── DataProcessor/
 │   ├── ULBiTP_data_loader.py
 │   ├── preprocess_data.py
@@ -208,6 +207,7 @@ EGOSD/
 ├── compare_models.py
 ├── compare_models_with_flops.py
 ├── analyze_and_plot_mechanism.py
+├── LICENSE
 └── README.md
 ```
 
@@ -327,7 +327,7 @@ Some original helpers expect additional files/configuration from the full resear
 
 ## Training
 
-### Original snapshot
+### Shared configuration and entry points
 
 Run commands from the repository root so that relative data paths resolve correctly:
 
@@ -336,11 +336,11 @@ python train_base.py
 python train_EGOSD.py
 ```
 
-Before the EGOSD command, see the [original class-name compatibility note](#original-class-name-compatibility) below. The original filenames and training implementations have been retained.
+All training entry points import `MainConfig` from `Configs.config`. Edit dataset paths, model settings and shared training fields in **`Configs/config.py`**. There is no separate comparison configuration. The EGOSD trainer imports the model and loss using aliases for the names defined in `Model/egosd.py`.
 
-The original repository defaults include:
+The current repository defaults include:
 
-| Setting | Original snapshot value |
+| Setting | Current value |
 | --- | --- |
 | Backbone configuration | `MainConfig.rlx_config` |
 | Frontend output channels | 128 |
@@ -357,15 +357,24 @@ The original repository defaults include:
 | Consistency warm-up | First 12 epochs |
 | Belief CTC coefficient | 0.5 |
 | Consistency coefficient after warm-up | 2.0 |
-| Early stopping | 6 epochs without validation PER improvement |
+| EGOSD / gate-control / CTC-SKD early stopping | 6 epochs without validation PER improvement |
 
-Optimizer/scheduler behavior follows each entry point. For example, the original Baseline reads configured weight decay, while EGOSD's fresh optimizer hard-codes `1e-2`; setting an unused legacy config field does not override that code path. Several other legacy configuration fields are not active in these trainers.
+Some optimizer settings are defined inside the trainers rather than read from `TrainingConfig`:
 
-The later GRID/Lombard research configurations used a maximum of 150 epochs and gradient clipping 3.0. They must not be silently treated as identical to the original 90-epoch/10.0 configuration. The two added comparison trainers import `Configs/comparison_config.py`, a separate copy of the full research configuration from `New_VSR`; they do not replace the original trainers' configuration. Not every historical initialization chain is reconstructed here.
+| Fresh training entry point | AdamW weight decay | Betas | Epsilon |
+| --- | --- | --- | --- |
+| `train_base.py` | `TrainingConfig.WEIGHT_DECAY` = 0.5 | Configured: (0.9, 0.98) | Configured: 1e-10 |
+| `train_EGOSD.py` | Hard-coded: 0.01 | PyTorch defaults: (0.9, 0.999) | PyTorch default: 1e-8 |
+| `train_gate_comparison_matched.py` | Hard-coded: 0.01 | PyTorch defaults: (0.9, 0.999) | PyTorch default: 1e-8 |
+| `train_ctc_skd_comparison.py` | Hard-coded: 0.5 | PyTorch defaults: (0.9, 0.999) | PyTorch default: 1e-8 |
+
+Changing a config field only affects code paths that read that field. A shared config file therefore does not imply identical effective optimizer settings across every entry point. The Baseline early-stopping break is commented out in the supplied trainer; its loop can continue to the configured maximum epochs.
+
+The authors' later research configurations used a maximum of 150 epochs and gradient clipping 3.0, whereas the current shared config defaults to 90 epochs and clipping 10.0. Set the intended values in the single `Configs/config.py` before a new experiment and record the effective optimizer settings and initialization. The reported historical results should not be interpreted as measurements newly reproduced with the shipped defaults. No second config file is required.
 
 ### Revision comparison experiments
 
-The added files retain the training logic of the corresponding `New_VSR` scripts. Only import paths were adapted to the published model filenames and the separate comparison configuration:
+The comparison scripts use the published `Model/base.py` and `Model/egosd.py` implementations and the same `Configs/config.py` entry point as the other trainers:
 
 | Entry point | Mode | Reported GRID test PER (%) |
 | --- | --- | ---: |
@@ -382,7 +391,7 @@ python train_ctc_skd_comparison.py --seed 42
 python train_ctc_skd_comparison.py --evaluate /path/to/best_student.pth --split test
 ```
 
-Both trainers use `MainConfig.rlx_config` from `Configs/comparison_config.py`. Its defaults include batch size 32, maximum 150 epochs, initial learning rate 0.0002 and gradient clipping 3.0. Set data paths and check the existing split manifests before running; do not regenerate splits for each comparison.
+Both comparison trainers use `MainConfig.rlx_config` from `Configs/config.py`. The current shared defaults are batch size 32, maximum 90 epochs, initial learning rate 0.0002 and gradient clipping 10.0. Check the intended run settings against the tables above, set data paths and preserve the existing split manifests; do not regenerate splits for each comparison.
 
 The gate trainer imports `Model/egosd.py`, whose published detach default is **2 frames**. It retains the 12-epoch consistency warm-up, followed by fixed or max-softmax frame weighting. This is the matched fixed-weight control associated with 8.200% PER, rather than the historical no-gate entry point.
 
@@ -398,7 +407,7 @@ The original EGOSD detach default is defined in `Model/egosd.py`, in `VLBPModule
 
 ### Continuing from a checkpoint
 
-The original entry points accept a full checkpoint containing `model_state`:
+The Baseline and EGOSD entry points accept a full checkpoint containing `model_state`:
 
 ```bash
 python train_base.py --resume /path/to/full_checkpoint.pth
@@ -408,6 +417,8 @@ python train_EGOSD.py --resume /path/to/full_checkpoint.pth
 A best-weight file containing only a raw state dictionary is not automatically interchangeable with the full checkpoint expected by `--resume`. Keep the configuration and vocabulary compatible with the checkpoint.
 
 The original Baseline uses its stored start epoch. The original EGOSD code restores state but its epoch loop restarts at zero, which can repeat the consistency warm-up. Therefore, do not describe its `--resume` behavior as an exact uninterrupted continuation. Match the actual training stages used in a reported result.
+
+The gate-control trainer also accepts `--resume`, but its resume path creates a fresh optimizer, reads configured weight decay and changes the consistency start threshold to epoch 10. It does not restore an uninterrupted optimizer/scheduler trajectory. The CTC-SKD trainer has no resume option; its recorded weight decay is taken directly from the optimizer used for that run.
 
 Logs and checkpoints are written to the configured `logs/` and `checkpoints/` paths. Select the model using validation PER; report test PER only after a separate test evaluation.
 
@@ -443,9 +454,9 @@ Its plot describes prediction entropy and consistency behavior. It is not, on it
 
 ## Implementation notes and troubleshooting
 
-### Original class-name compatibility
+### Model and loss class names
 
-The original `train_EGOSD.py` imports the names `ULBiTP_R_v8_EGOSD_FullFeedback` and `EGOSD_Loss`, while the distributed `Model/egosd.py` defines `ULBiTP_R_v8_VLBP_FullFeedback` and `UncertaintyAwareLoss`. If this produces an import error, the compatible import is:
+`Model/egosd.py` defines `ULBiTP_R_v8_VLBP_FullFeedback` and `UncertaintyAwareLoss`. The EGOSD training entry point uses these existing definitions through aliases:
 
 ```python
 from Model.egosd import (
@@ -455,7 +466,7 @@ from Model.egosd import (
 )
 ```
 
-This maps existing names without changing the architecture or loss formula. This README update documents the mismatch; it does not modify the source files.
+These aliases resolve the earlier class-name import mismatch without changing the model architecture, loss formula or checkpoint keys. The gate-control trainer imports the same classes directly under their defined names.
 
 ### CTC blank convention
 
@@ -510,10 +521,12 @@ The preprint DOI should be replaced or supplemented with final journal bibliogra
 Affiliations:
 
 1. Department of Computer Engineering, Ka.C., Islamic Azad University, Karaj, Iran.
-2. Research Center of Interactive Technologies and Extended Reality Technologies, Islamic Azad University, Karaj Branch, Karaj, Iran.
+2. The Research Center for Interactive Technologies and Extended Reality, Karaj Branch, Islamic Azad University, Karaj, Iran.
 
 ## Licensing
 
-The original EGOSD repository does not currently declare a repository-wide software license. Making a repository public does not by itself grant an unrestricted right to reuse or redistribute its code. An explicit license can be added once the copyright holders have selected its terms.
+The original EGOSD source code and accompanying software documentation are licensed under the **BSD 3-Clause License**; see [LICENSE](LICENSE). The license permits research and commercial use, modification, and redistribution, subject to retaining the required copyright notice, license conditions, and disclaimer. The copyright holder's and contributors' names may not be used to endorse or promote derived products without specific prior written permission.
 
-PyLipExtractor is a separate MIT-licensed package; its license does not automatically license EGOSD. Dataset terms and third-party package licenses remain separate. The DOI above identifies the research preprint and is not a software license.
+This software license does not license the research paper, third-party datasets or media, dataset-derived files under `dataset_processed/`, or model checkpoints under `ch/`. Their respective rights and access terms must be handled separately. Third-party code and dependencies retain their own licenses; PyLipExtractor is a separate MIT-licensed package.
+
+Please cite the paper when using this research, as described in [Citation](#citation). Academic citation is a separate request, not an additional restriction on the BSD 3-Clause License. The software license does not transfer ownership of the paper or constitute a patent filing or a guarantee of patent protection.
